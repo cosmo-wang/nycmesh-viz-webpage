@@ -11,10 +11,12 @@ ALT_IDX = -1
 
 nodes_info = []
 
+supernodes = []
+hubs = []
+nodes = []
+
 with open("nodes.csv", 'r') as file:
     csvreader = csv.reader(file)
-    header = next(csvreader)
-    print(header)
     for row in csvreader:
         if row[STATUS_IDX] == "Installed":
             node = {}
@@ -24,13 +26,14 @@ with open("nodes.csv", 'r') as file:
             node['lng'] = row[LNG_IDX]
             node['alt'] = row[ALT_IDX]
             if "hub" in row[NOTES_IDX].lower():
-                type = "hub"
+                node['type'] = "hub"
+                hubs.append(node)
             elif "supernode" in row[NAME_IDX].lower():
-                type = "supernode"
+                node['type'] = "supernode"
+                supernodes.append(node)
             else:
-                type = "node"
-            node['type'] = type
-            nodes_info.append(node)
+                node['type'] = "node"
+                nodes.append(node)
 
-print(nodes_info)
+print(nodes + hubs + supernodes)
 
