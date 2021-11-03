@@ -1,4 +1,4 @@
-#path-nodes {
+#floating-window {
   background-color: rgba(35, 55, 75, 0.9);
   color: #fff;
   padding: 6px 9px;
@@ -57,4 +57,15 @@
 
 #plot-path-button-icon {
   margin-right: 10px;
+}
+
+#idToSearch {
+  border: 1px solid white;
+  border-radius: 4px;
+  height: 25px;
+  margin: 10px 5px;
+}
+
+#search-button {
+  height: 25px;
 }

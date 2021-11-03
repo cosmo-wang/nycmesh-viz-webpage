@@ -1,11 +1,13 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, useCallback } from "react";
 import ReactDOM from "react-dom";
 import mapboxgl from "!mapbox-gl"; // eslint-disable-line import/no-webpack-loader-syntax
 import Button from "react-bootstrap/Button";
 import ButtonGroup from "react-bootstrap/ButtonGroup";
+import Form from "react-bootstrap/Form";
+import FormControl from "react-bootstrap/FormControl";
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
-import { AiOutlineDelete } from 'react-icons/ai';
-import { FaRoute } from 'react-icons/fa';
+import { AiOutlineDelete } from "react-icons/ai";
+import { FaRoute } from "react-icons/fa";
 import { reorder } from "./Utils";
 import "./App.css";
 
@@ -7252,11 +7254,14 @@ const Popup = ({ node, handleAddStart, handleAddEnd }) => (
     <h3 className="node-type">Type: {node.type}</h3>
     <p className="node-id">ID: {node.id}</p>
     <p className="network-number">Network Number: {node.nn}</p>
+    <p className="coordinates">Coordinates: {node.lng}, {node.lat}</p>
     <ButtonGroup>
       <Button onClick={() => handleAddStart(node.id)} variant="primary">
         Add Start
       </Button>
-      <Button onClick={() => handleAddEnd(node.id)} variant="primary">Add End</Button>
+      <Button onClick={() => handleAddEnd(node.id)} variant="primary">
+        Add End
+      </Button>
     </ButtonGroup>
   </div>
 );
@@ -7266,10 +7271,15 @@ const getItemStyle = (isDragging, draggableStyle) => ({
   background: isDragging ? "grey" : "transparent",
 
   // styles we need to apply on draggables
-  ...draggableStyle
+  ...draggableStyle,
 });
 
-const DraggablePathNode = ({ node, index, handlePathNodeDelete, handleNodeClick }) => (
+const DraggablePathNode = ({
+  node,
+  index,
+  handlePathNodeDelete,
+  handleNodeClick,
+}) => (
   <div className="drag-item-container">
     <Draggable key={node.id} draggableId={node.id} index={index}>
       {(provided, snapshot) => (
@@ -7283,17 +7293,27 @@ const DraggablePathNode = ({ node, index, handlePathNodeDelete, handleNodeClick 
           )}
           className="drag-item"
         >
-          <div className="drag-item-text" onClick={() => handleNodeClick(node)}>{`Node ID: ${node.id}`}</div>
-          <AiOutlineDelete className="drag-item-button" size="2em" onClick={() => handlePathNodeDelete(index)}/>
+          <div
+            className="drag-item-text"
+            onClick={() => handleNodeClick(node)}
+          >{`Node ID: ${node.id}`}</div>
+          <AiOutlineDelete
+            className="drag-item-button"
+            size="2em"
+            onClick={() => handlePathNodeDelete(index)}
+          />
         </div>
-        
       )}
     </Draggable>
-    
   </div>
 );
 
-const PathNodes = ({ pathNodes, onDragEnd, handlePathNodeDelete, handleNodeClick }) => (
+const PathNodes = ({
+  pathNodes,
+  onDragEnd,
+  handlePathNodeDelete,
+  handleNodeClick,
+}) => (
   <div>
     <DragDropContext onDragEnd={onDragEnd}>
       <Droppable droppableId="droppable">
@@ -7352,30 +7372,34 @@ function App() {
             },
           };
         },
+        getCoordinates() {
+          return [this.lng, this.lat];
+        }
       };
     })
   );
   const [idToNodes, setIdToNodes] = useState(null);
   const [pathNodes, setPathNodes] = useState([]);
+  const [path, setPath] = useState();
   const [focusedNode, setFocusedNode] = useState(null);
 
-  const handleAddStart = (id) => {
+  const handleAddStart = useCallback((id) => {
     for (let i = 0; i < pathNodes.length; i++) {
       if (pathNodes[i].id === id) {
         return;
       }
     }
     setPathNodes([idToNodes[id]].concat(pathNodes));
-  };
+  }, [idToNodes, pathNodes]);
 
-  const handleAddEnd = (id) => {
+  const handleAddEnd = useCallback((id) => {
     for (let i = 0; i < pathNodes.length; i++) {
       if (pathNodes[i].id === id) {
         return;
       }
     }
     setPathNodes(pathNodes.concat([idToNodes[id]]));
-  };
+  }, [idToNodes, pathNodes]);
 
   const onDragEnd = (result) => {
     // dropped outside the list
@@ -7390,7 +7414,7 @@ function App() {
     setPathNodes(newPathNodes);
   };
 
-  const showPopup = (node) => {
+  const showPopup = useCallback((node) => {
     const popupNode = document.createElement("div");
     ReactDOM.render(
       <Popup
@@ -7405,14 +7429,27 @@ function App() {
       .setDOMContent(popupNode)
       .setMaxWidth("300px")
       .addTo(map.current);
-  };
+  }, [handleAddStart, handleAddEnd]);
 
   const handleNodeClick = (node) => {
-    map.current.flyTo({center: [node.lng, node.lat], zoom: 15, speed:2});
-    showPopup(node);
+    setFocusedNode(node);
+    map.current.flyTo({ center: [node.lng, node.lat], zoom: 13, speed: 2 });
+  };
+
+  const handleNodeSearch = (e) => {
+    e.preventDefault();
+    const idToSearch = e.target.elements.idToSearch.value;
+    const nodeToSearch = idToNodes[idToSearch];
+    if (nodeToSearch) {
+      handleNodeClick(nodeToSearch);
+    } else {
+      alert(`No node with ID ${idToSearch} found.`);
+    }
   };
 
   const handlePathNodeDelete = (index) => {
+    setFocusedNode(null);
+    popUpRef.current.remove();
     const newPathNodes = [];
     pathNodes.forEach((node, i) => {
       if (i !== index) {
@@ -7420,24 +7457,20 @@ function App() {
       }
     });
     setPathNodes(newPathNodes);
-  }
+  };
 
-  const plotPath = () => {
+  const handlePlotPath = () => {
+    popUpRef.current.remove();
+    setFocusedNode(null);
+    let pathToPlot = [];
+    for (let i = 0; i < pathNodes.length; i++) {
+      // TODO: replace this with real path culation algorithm
+      pathToPlot = pathToPlot.concat([[pathNodes[i].lng, pathNodes[i].lat]]);
+    }
+    setPath(pathToPlot);
+  };
 
-  }
-
-  // after fetching nodes, set up the mapping from id to references to node objects
-  useEffect(() => {
-    const newIdToNodes = new Map();
-    nodes.forEach((node) => { newIdToNodes[node.id] = node; });
-    setIdToNodes(newIdToNodes);
-  }, [nodes]);
-
-  useEffect(() => {
-    if (!focusedNode) return;
-    showPopup(focusedNode);
-  }, [focusedNode]);
-
+  // initialize the map
   useEffect(() => {
     if (map.current) return; // initialize map only once
     map.current = new mapboxgl.Map({
@@ -7446,7 +7479,6 @@ function App() {
       center: [lng, lat],
       zoom: zoom,
     });
-    map.current.addControl(new mapboxgl.FullscreenControl());
     map.current.addControl(
       new mapboxgl.GeolocateControl({
         positionOptions: {
@@ -7465,6 +7497,7 @@ function App() {
     map.current.addControl(new mapboxgl.NavigationControl());
   });
 
+  // move map to initial center
   useEffect(() => {
     if (!map.current) return; // wait for map to initialize
     map.current.on("move", () => {
@@ -7474,9 +7507,20 @@ function App() {
     });
   });
 
+  // fetch nodes from server
+
+  // after fetching nodes, set up the mapping from id to references to node objects
+  useEffect(() => {
+    const newIdToNodes = new Map();
+    nodes.forEach((node) => {
+      newIdToNodes[node.id] = node;
+    });
+    setIdToNodes(newIdToNodes);
+  }, [nodes]);
+
   // render nodes on the map
   useEffect(() => {
-    if (!map.current) return; // wait for map to initialize
+    if (!map.current || map.current.getLayer("nodes")) return; // wait for map to initialize
     map.current.on("load", () => {
       map.current.addSource("all_nodes", {
         type: "geojson",
@@ -7497,8 +7541,8 @@ function App() {
             ["==", ["get", "node_type"], "hub"],
             9,
             ["==", ["get", "node_type"], "node"],
-            5,
-            5,
+            7,
+            7,
           ],
           "circle-color": [
             "case",
@@ -7519,7 +7563,7 @@ function App() {
   useEffect(() => {
     if (!map.current.getLayer("nodes")) return;
     map.current.on("click", "nodes", (e) => {
-      handleNodeClick(idToNodes[e.features[0].properties.id]);
+      setFocusedNode(idToNodes[e.features[0].properties.id]);
     });
     // Change the cursor to a pointer when the mouse is over the places layer.
     map.current.on("mouseenter", "nodes", () => {
@@ -7532,23 +7576,88 @@ function App() {
     });
   });
 
+  // event handler for nodes on-click
+  useEffect(() => {
+    if (!focusedNode) return;
+    showPopup(focusedNode);
+  }, [focusedNode, showPopup]);
+
+  // render a path on the map
+  useEffect(() => {
+    if (!map.current.loaded()) return; // wait for map to initialize
+    if (map.current.getLayer("path")) {
+      map.current.removeLayer("path");
+      map.current.removeSource("path");
+    }
+    const layers = map.current.getStyle().layers;
+    let nodesLayerId;
+    for (const layer of layers) {
+      if (layer === 'symbol') {
+        nodesLayerId = layer.id;
+        break;
+      }
+    }
+    map.current.addSource("path", {
+      type: "geojson",
+      data: {
+        type: "Feature",
+        properties: {},
+        geometry: {
+          type: "LineString",
+          coordinates: path,
+        },
+      },
+    });
+    map.current.addLayer({
+      id: "path",
+      type: "line",
+      source: "path",
+      layout: {
+        "line-join": "round",
+        "line-cap": "round",
+      },
+      paint: {
+        "line-color": "#006eff",
+        "line-width": 5,
+      },
+    }, nodesLayerId);
+  }, [path]);
+
   return (
     <div>
-      {
-        pathNodes.length === 0 ? <></> :
-        <div id="path-nodes">
-          <PathNodes
-            pathNodes={pathNodes}
-            onDragEnd={onDragEnd}
-            handlePathNodeDelete={handlePathNodeDelete}
-            handleNodeClick={handleNodeClick}
-          />
-          <div id="plot-path-button" onClick={plotPath}>
-            <FaRoute id="plot-path-button-icon"/>
+      <div id="floating-window">
+        <div>
+          <Form
+            id="search-container"
+            onSubmit={(event) => {
+              handleNodeSearch(event);
+            }}
+          >
+            <FormControl
+              type="input"
+              placeholder="Search Node ID"
+              id="idToSearch"
+            />
+            <Button id="search-button" type="submit">
+              Search
+            </Button>
+          </Form>
+        </div>
+        <PathNodes
+          pathNodes={pathNodes}
+          onDragEnd={onDragEnd}
+          handlePathNodeDelete={handlePathNodeDelete}
+          handleNodeClick={handleNodeClick}
+        />
+        {pathNodes.length >= 2 ? (
+          <div id="plot-path-button" onClick={handlePlotPath}>
+            <FaRoute id="plot-path-button-icon" />
             <div>Plot Path</div>
           </div>
-        </div>
-      }
+        ) : (
+          <></>
+        )}
+      </div>
       <div ref={mapContainer} className="map-container" />
     </div>
   );
