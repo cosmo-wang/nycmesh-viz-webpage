@@ -8,6 +8,7 @@ import FormControl from "react-bootstrap/FormControl";
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import { AiOutlineDelete } from "react-icons/ai";
 import { FaRoute } from "react-icons/fa";
+import Switch from "./components/Switch";
 import { reorder } from "./Utils";
 import "./App.css";
 
@@ -7279,6 +7280,7 @@ const DraggablePathNode = ({
   index,
   handlePathNodeDelete,
   handleNodeClick,
+  handleToggleNode
 }) => (
   <div className="drag-item-container">
     <Draggable key={node.id} draggableId={node.id} index={index}>
@@ -7297,6 +7299,15 @@ const DraggablePathNode = ({
             className="drag-item-text"
             onClick={() => handleNodeClick(node)}
           >{`Node ID: ${node.id}`}</div>
+          <Switch
+            id={node.id}
+            isOn={node.simStatusOn}
+            onColor="#428ef2"
+            handleToggle={() => {
+              console.log(node.id);
+              handleToggleNode(node);
+            }}
+          />
           <AiOutlineDelete
             className="drag-item-button"
             size="2em"
@@ -7313,6 +7324,7 @@ const PathNodes = ({
   onDragEnd,
   handlePathNodeDelete,
   handleNodeClick,
+  handleToggleNode
 }) => (
   <div>
     <DragDropContext onDragEnd={onDragEnd}>
@@ -7330,6 +7342,7 @@ const PathNodes = ({
                 index={index}
                 handlePathNodeDelete={handlePathNodeDelete}
                 handleNodeClick={handleNodeClick}
+                handleToggleNode={handleToggleNode}
               />
             ))}
             {provided.placeholder}
@@ -7358,6 +7371,8 @@ function App() {
         lng: rawNode.lng,
         alt: rawNode.alt,
         type: rawNode.type,
+        statusOn: true,
+        simStatusOn: true,
         toGeoJson() {
           return {
             type: "Feature",
@@ -7459,13 +7474,28 @@ function App() {
     setPathNodes(newPathNodes);
   };
 
+  const handleToggleNode = (node) => {
+    const newPathNodes = [];
+    pathNodes.forEach(oldNode => {
+      if (oldNode.id === node.id) {
+        oldNode.simStatusOn = !oldNode.simStatusOn;
+        newPathNodes.push(oldNode);
+      } else {
+        newPathNodes.push(oldNode);
+      }
+    });
+    setPathNodes(newPathNodes);
+  }
+
   const handlePlotPath = () => {
     popUpRef.current.remove();
     setFocusedNode(null);
     let pathToPlot = [];
     for (let i = 0; i < pathNodes.length; i++) {
       // TODO: replace this with real path culation algorithm
-      pathToPlot = pathToPlot.concat([[pathNodes[i].lng, pathNodes[i].lat]]);
+      if (pathNodes[i].simStatusOn) {
+        pathToPlot = pathToPlot.concat([[pathNodes[i].lng, pathNodes[i].lat]]);
+      }
     }
     setPath(pathToPlot);
   };
@@ -7648,6 +7678,7 @@ function App() {
           onDragEnd={onDragEnd}
           handlePathNodeDelete={handlePathNodeDelete}
           handleNodeClick={handleNodeClick}
+          handleToggleNode={handleToggleNode}
         />
         {pathNodes.length >= 2 ? (
           <div id="plot-path-button" onClick={handlePlotPath}>
