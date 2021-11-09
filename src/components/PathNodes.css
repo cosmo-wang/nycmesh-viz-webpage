@@ -1,0 +1,43 @@
+.drag-item-text {
+  margin: 10px;
+  border: 1px solid white;
+  border-radius: 4px;
+  padding: 10px;
+  width: 120px;
+  height: 15px;
+}
+
+.drag-item-button {
+  padding: 10px;
+}
+
+.drag-item-button:hover {
+  cursor: pointer;
+}
+
+.drag-item {
+  border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#plot-path-button {
+  border: 1px solid white;
+  border-radius: 4px;
+  width: 100px;
+  padding: 10px;
+  margin: 10px 0;
+  background-color: green;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+#plot-path-button:hover {
+  cursor: pointer;
+}
+
+#plot-path-button-icon {
+  margin-right: 10px;
+}

@@ -1,0 +1,10 @@
+#idToSearch {
+  border: 1px solid white;
+  border-radius: 4px;
+  height: 25px;
+  margin: 10px 5px;
+}
+
+#search-button {
+  height: 25px;
+}
