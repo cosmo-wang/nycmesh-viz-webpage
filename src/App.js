@@ -7250,6 +7250,8 @@ const NODES = [
   },
 ];
 
+const SERVER_URL = "localhost:3000";
+
 const Popup = ({ node, handleAddStart, handleAddEnd }) => (
   <div className="popup">
     <h3 className="node-type">Type: {node.type}</h3>
@@ -7304,7 +7306,6 @@ const DraggablePathNode = ({
             isOn={node.simStatusOn}
             onColor="#428ef2"
             handleToggle={() => {
-              console.log(node.id);
               handleToggleNode(node);
             }}
           />
@@ -7362,41 +7363,52 @@ function App() {
   const [lat, setLat] = useState(40.7051);
   const [zoom, setZoom] = useState(10.75);
   // nodes info
-  const [nodes, setNodes] = useState(
-    NODES.map((rawNode) => {
-      return {
-        id: rawNode.id,
-        nn: rawNode.nn,
-        lat: rawNode.lat,
-        lng: rawNode.lng,
-        alt: rawNode.alt,
-        type: rawNode.type,
-        statusOn: true,
-        simStatusOn: true,
-        toGeoJson() {
-          return {
-            type: "Feature",
-            properties: {
-              id: this.id,
-              nn: this.nn,
-              node_type: this.type,
-            },
-            geometry: {
-              type: "Point",
-              coordinates: [this.lng, this.lat, this.alt],
-            },
-          };
-        },
-        getCoordinates() {
-          return [this.lng, this.lat];
-        }
-      };
-    })
-  );
+  const [nodes, setNodes] = useState([]);
   const [idToNodes, setIdToNodes] = useState(null);
   const [pathNodes, setPathNodes] = useState([]);
   const [path, setPath] = useState();
   const [focusedNode, setFocusedNode] = useState(null);
+
+  const fetchNodes = async () => {
+    fetch(`http://localhost:3000/fetch_nodes`)
+      .then(res => res.json())
+      .then(resJson => {
+        const fetchedNodes = resJson.map((rawNode) => {
+          return {
+            id: rawNode.id,
+            nn: rawNode.nn,
+            lat: rawNode.lat,
+            lng: rawNode.lng,
+            alt: rawNode.alt,
+            type: rawNode.type,
+            statusOn: true,
+            simStatusOn: true,
+            toGeoJson() {
+              return {
+                type: "Feature",
+                properties: {
+                  id: this.id,
+                  nn: this.nn,
+                  node_type: this.type,
+                },
+                geometry: {
+                  type: "Point",
+                  coordinates: [this.lng, this.lat, this.alt],
+                },
+              };
+            },
+            getCoordinates() {
+              return [this.lng, this.lat];
+            }
+          };
+        });
+        setNodes(fetchedNodes);
+      })
+      .catch(error => {
+        setNodes([]);
+        console.log(error);
+      });
+  };
 
   const handleAddStart = useCallback((id) => {
     for (let i = 0; i < pathNodes.length; i++) {
@@ -7525,6 +7537,7 @@ function App() {
       })
     );
     map.current.addControl(new mapboxgl.NavigationControl());
+    fetchNodes();
   });
 
   // move map to initial center
@@ -7537,8 +7550,6 @@ function App() {
     });
   });
 
-  // fetch nodes from server
-
   // after fetching nodes, set up the mapping from id to references to node objects
   useEffect(() => {
     const newIdToNodes = new Map();
@@ -7550,9 +7561,15 @@ function App() {
 
   // render nodes on the map
   useEffect(() => {
-    if (!map.current || map.current.getLayer("nodes")) return; // wait for map to initialize
+    console.log(1, nodes);
+    if (!map.current) return; // wait for map to initialize
+    // if (map.current.getLayer("nodes")) {
+    //   map.current.removeLayer("nodes");
+    //   map.current.removeSource("nodes");
+    // }
+    console.log(2, nodes);
     map.current.on("load", () => {
-      map.current.addSource("all_nodes", {
+      map.current.addSource("nodes", {
         type: "geojson",
         data: {
           type: "FeatureCollection",
@@ -7561,7 +7578,7 @@ function App() {
       });
       map.current.addLayer({
         id: "nodes",
-        source: "all_nodes",
+        source: "nodes",
         type: "circle",
         paint: {
           "circle-radius": [

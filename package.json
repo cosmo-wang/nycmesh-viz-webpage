@@ -8,6 +8,7 @@
     "@testing-library/user-event": "^12.8.3",
     "mapbox-gl": "^2.5.1",
     "mapbox-gl-geocoder": "^2.0.1",
+    "n": "^8.0.0",
     "react": "^17.0.2",
     "react-beautiful-dnd": "^13.1.0",
     "react-bootstrap": "^2.0.1",
@@ -16,10 +17,11 @@
     "react-input-switch": "^2.2.2",
     "react-mapbox-gl": "^5.1.1",
     "react-scripts": "4.0.3",
+    "stable": "^0.1.8",
     "web-vitals": "^1.1.2"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "start": "PORT=3001 react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
