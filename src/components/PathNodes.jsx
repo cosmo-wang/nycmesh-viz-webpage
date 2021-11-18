@@ -1,6 +1,7 @@
 import React from 'react';
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import { AiOutlineDelete } from "react-icons/ai";
+import { FaRoute } from "react-icons/fa";
 import Switch from "./Switch";
 import "./PathNodes.css";
 
@@ -60,9 +61,10 @@ const PathNodes = ({
   onDragEnd,
   handlePathNodeDelete,
   handleNodeClick,
-  handleToggleNode
+  handleToggleNode,
+  handlePlotPath
 }) => (
-  <div>
+  <div id="path-nodes">
     <DragDropContext onDragEnd={onDragEnd}>
       <Droppable droppableId="droppable">
         {(provided, snapshot) => (
@@ -86,6 +88,14 @@ const PathNodes = ({
         )}
       </Droppable>
     </DragDropContext>
+    {pathNodes.length >= 2 ? (
+      <div id="plot-path-button" onClick={handlePlotPath}>
+        <FaRoute id="plot-path-button-icon" />
+        <div>Plot Path</div>
+      </div>
+    ) : (
+      <></>
+    )}
   </div>
 );
 

@@ -1,3 +1,10 @@
+#path-nodes {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+}
+
 .drag-item-text {
   margin: 10px;
   border: 1px solid white;

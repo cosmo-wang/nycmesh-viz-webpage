@@ -1,7 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import ReactDOM from "react-dom";
 import mapboxgl from "!mapbox-gl"; // eslint-disable-line import/no-webpack-loader-syntax
-import { FaRoute } from "react-icons/fa";
 import Popup from "./components/Popup";
 import PathNodes from "./components/PathNodes";
 import NodeSearchBox from "./components/NodeSearchBox";
@@ -12,6 +11,20 @@ mapboxgl.accessToken =
   "pk.eyJ1IjoiY29zbW93YW5nIiwiYSI6ImNqdWl0bG50ODFlZ2w0ZnBnc3VyejZmbWQifQ.5TjxQgPSj6B7VcFkvSfqBA";
 
 const SERVER_URL = "http://localhost:3000/";
+
+const ID_TO_TP = {
+  7347: "10.69.73.47",
+  1971: "10.69.19.71",
+  1440: "10.68.14.40",
+  7941: "10.68.79.41"
+}
+
+const IP_TO_ID = {
+  "10.69.73.47": 7347,
+  "10.69.19.71": 1971,
+  "10.68.14.40": 1440,
+  "10.68.79.41": 7941
+}
 
 function App() {
   const mapContainer = useRef(null);
@@ -66,7 +79,29 @@ function App() {
       .catch(error => {
         setNodes([]);
         console.log(error);
+        alert("Failed to fetch nodes information.")
       });
+  };
+
+  const queryPath = async (start, end, disabled) => {
+    let disabledQueryStr = "";
+    disabled.forEach((disabledNode, index) => {
+      disabledQueryStr += disabledNode + (index === disabled.length - 1 ? "" : ",");
+    })
+    fetch(`${SERVER_URL}path_finding?node1=${ID_TO_TP[start]}&node2=${ID_TO_TP[end]}&disabled_node=${disabledQueryStr}`)
+    .then(res => res.json())
+    .then(resJson => {
+      console.log(resJson);
+      const pathToPlot = resJson.map(ip => idToNodes[IP_TO_ID[ip]].getCoordinates());
+      const newPathNodes = resJson.map(ip => idToNodes[IP_TO_ID[ip]]);
+      setPathNodes(newPathNodes);
+      setPath(pathToPlot);
+    })
+    .catch(error => {
+      console.log(error);
+      alert(`Failed to find a path between ${start} and ${end}.`)
+      return [];
+    });
   };
 
   const handleAddStart = useCallback((id) => {
@@ -161,14 +196,7 @@ function App() {
   const handlePlotPath = () => {
     popUpRef.current.remove();
     setFocusedNode(null);
-    let pathToPlot = [];
-    for (let i = 0; i < pathNodes.length; i++) {
-      // TODO: replace this with real path culation algorithm
-      if (pathNodes[i].simStatusOn) {
-        pathToPlot = pathToPlot.concat([[pathNodes[i].lng, pathNodes[i].lat]]);
-      }
-    }
-    setPath(pathToPlot);
+    queryPath(pathNodes[0].id, pathNodes[pathNodes.length - 1].id, ['10.69.4.7','10.68.4.7','10.70.253.20','10.70.253.21']);
   };
 
   // initialize the map
@@ -196,7 +224,7 @@ function App() {
       })
     );
     map.current.addControl(new mapboxgl.NavigationControl());
-    fetchNodes();
+    fetchNodes();  // fetch nodes info only once
   });
 
   // move map to initial center
@@ -225,7 +253,6 @@ function App() {
         map.current.removeLayer("nodes");
         map.current.removeSource("nodes");
       }
-      console.log(2, nodes);
       map.current.addSource("nodes", {
         type: "geojson",
         data: {
@@ -273,7 +300,6 @@ function App() {
     map.current.on("mouseenter", "nodes", () => {
       map.current.getCanvas().style.cursor = "pointer";
     });
-
     // Change it back to a pointer when it leaves.
     map.current.on("mouseleave", "nodes", () => {
       map.current.getCanvas().style.cursor = "";
@@ -337,15 +363,8 @@ function App() {
           handlePathNodeDelete={handlePathNodeDelete}
           handleNodeClick={handleNodeClick}
           handleToggleNode={handleToggleNode}
+          handlePlotPath={handlePlotPath}
         />
-        {pathNodes.length >= 2 ? (
-          <div id="plot-path-button" onClick={handlePlotPath}>
-            <FaRoute id="plot-path-button-icon" />
-            <div>Plot Path</div>
-          </div>
-        ) : (
-          <></>
-        )}
       </div>
       <div ref={mapContainer} className="map-container" />
     </div>
