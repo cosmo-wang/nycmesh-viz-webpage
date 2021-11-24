@@ -5,6 +5,11 @@
   align-items: center;
 }
 
+.drag-item-container {
+  display: flex;
+  align-items: center;
+}
+
 .drag-item-text {
   margin: 10px;
   border: 1px solid white;
@@ -29,22 +34,26 @@
   align-items: center;
 }
 
-#plot-path-button {
+.custom-button-group {
+  display: flex;
+}
+
+.custom-button {
   border: 1px solid white;
   border-radius: 4px;
-  width: 100px;
+  width: 110px;
   padding: 10px;
-  margin: 10px 0;
+  margin: 10px 5px;
   background-color: green;
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
-#plot-path-button:hover {
+.custom-button:hover {
   cursor: pointer;
 }
 
-#plot-path-button-icon {
+.custom-button-icon {
   margin-right: 10px;
 }
