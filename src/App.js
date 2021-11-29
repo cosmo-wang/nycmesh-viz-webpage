@@ -5,7 +5,6 @@ import Popup from "./components/Popup";
 import PathNodes from "./components/PathNodes";
 import DisabledNodes from "./components/DisabledNodes";
 import NodeSearchBox from "./components/NodeSearchBox";
-import { ip_to_nn, nn_to_ip } from "./Utils";
 import "./App.css";
 
 mapboxgl.accessToken =
@@ -127,14 +126,11 @@ function App() {
   };
 
   const queryPath = async () => {
-    let queryURL = `${SERVER_URL}path_finding?node1=${nn_to_ip(
-      startNode.nn
-    )}&node2=${nn_to_ip(endNode.nn)}`;
+    let queryURL = `${SERVER_URL}path_finding?node1=${startNode.nn}&node2=${endNode.nn}`;
     if (disabledNodes.size > 0) {
       let disabledQueryStr = "";
       disabledNodes.forEach((disabledNode, index) => {
-        disabledQueryStr +=
-          nn_to_ip(disabledNode.nn) +
+        disabledQueryStr += disabledNode.nn +
           (index === disabledNodes.size - 1 ? "" : ",");
       });
       queryURL += `&disabled_node=${disabledQueryStr}`;
@@ -144,7 +140,21 @@ function App() {
       .then((res) => res.json())
       .then((resJson) => {
         console.log(resJson);
-        const pathToPlot = resJson.map((ip) => nnToNodes[ip_to_nn(ip)]);
+        let pathToPlot;
+        if (resJson.length > 0) {
+          pathToPlot = resJson.map((node) => {
+            return {
+              "node": nnToNodes[node["node"]],
+              "weight": node["weight"]
+            }
+          });
+          console.log(pathToPlot);
+        } else {
+          pathToPlot = [];
+          alert(
+            `Failed to find a path between ${startNode.id} and ${endNode.id}.`
+          );
+        }
         setPath(pathToPlot);
       })
       .catch((error) => {
@@ -190,6 +200,8 @@ function App() {
     [handleAddStart, handleAddEnd]
   );
 
+
+
   const handleNodeClick = (node) => {
     setFocusedNode(node);
     map.current.flyTo({ center: [node.lng, node.lat], zoom: 13, speed: 2 });
@@ -204,16 +216,6 @@ function App() {
     } else {
       alert(`No node with ID ${idToSearch} found.`);
     }
-  };
-
-  const handleEndPointDelete = (id) => {
-    if (id === startNode.id) {
-      setStartNode(null);
-    } else if (id === endNode.id) {
-      setEndNode(null);
-    }
-    setFocusedNode(null);
-    popUpRef.current.remove();
   };
 
   const handleToggleNode = (node) => {
@@ -246,6 +248,8 @@ function App() {
     setEndNode(null);
     setDisabledNodes(new Set());
     setPath([]);
+    setFocusedNode(null);
+    popUpRef.current.remove();
   };
 
   // initialize the map
@@ -319,7 +323,7 @@ function App() {
     map.current.on("mouseleave", "active_nodes", () => {
       map.current.getCanvas().style.cursor = "";
     });
-    console.log("rendering pop-up listeners");
+    // console.log("rendering pop-up listeners");
   });
 
   // event handler for nodes on-click
@@ -338,19 +342,32 @@ function App() {
     // make all nodes more transparent
     map.current.setPaintProperty("active_nodes", "circle-opacity", 0.3);
     // add nodes layer for nodes along the path
-    addNodesLayer("path_nodes", path);
+    addNodesLayer("path_nodes", path.map((nodeWeight) => nodeWeight["node"]));
+
+    const edgeFeatureCollection = [];
+    for (let i = 1; i < path.length; i++) {
+      const start = path[i - 1];
+      const end = path[i];
+      edgeFeatureCollection.push({
+        type: "Feature",
+        properties: {
+          weight: end["weight"],
+        },
+        geometry: {
+          type: "LineString",
+          coordinates: [start["node"].getCoordinates(), end["node"].getCoordinates()],
+        },
+      });
+    }
 
     map.current.addSource("path", {
       type: "geojson",
       data: {
-        type: "Feature",
-        properties: {},
-        geometry: {
-          type: "LineString",
-          coordinates: path.map((node) => node.getCoordinates()),
-        },
-      },
+        type: "FeatureCollection",
+        features: edgeFeatureCollection
+      }
     });
+
     map.current.addLayer({
       id: "path",
       type: "line",
@@ -364,6 +381,20 @@ function App() {
         "line-width": 5,
       },
     });
+    const popup = new mapboxgl.Popup({
+      closeButton: false,
+      closeOnClick: false
+    });
+    // Show current edge cost in popup when hovered
+    map.current.on("mouseenter", "path", (e) => {
+      map.current.getCanvas().style.cursor = "pointer";
+      popup.setLngLat(e.lngLat).setHTML(`<p>Cost: ${e.features[0].properties.weight}</p>`).addTo(map.current);
+    });
+    // Change it back to a pointer when it leaves.
+    map.current.on("mouseleave", "path", () => {
+      map.current.getCanvas().style.cursor = "";
+      popup.remove();
+    });
     console.log("rendering path")
   }, [path]);
 
@@ -374,9 +405,9 @@ function App() {
         <PathNodes
           startNode={startNode}
           endNode={endNode}
-          path={path}
+          path={path.map((nodeWeight) => nodeWeight["node"])}
+          totalCost={path.reduce((acc, nodeWeight) => acc + nodeWeight["weight"], 0)}
           disabledNodes={disabledNodes}
-          handleEndPointDelete={handleEndPointDelete}
           handleNodeClick={handleNodeClick}
           handleToggleNode={handleToggleNode}
           handlePlotPath={handlePlotPath}

@@ -5,33 +5,19 @@
   align-items: center;
 }
 
-.drag-item-container {
+.path-node {
   display: flex;
+  /* align-self: flex-start; */
   align-items: center;
 }
 
-.drag-item-text {
+.path-node-text {
   margin: 10px;
   border: 1px solid white;
   border-radius: 4px;
   padding: 10px;
   width: 120px;
   height: 15px;
-}
-
-.drag-item-button {
-  padding: 10px;
-}
-
-.drag-item-button:hover {
-  cursor: pointer;
-}
-
-.drag-item {
-  border-radius: 4px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
 }
 
 .custom-button-group {

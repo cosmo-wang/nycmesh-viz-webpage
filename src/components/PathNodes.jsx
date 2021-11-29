@@ -1,5 +1,4 @@
 import React from 'react';
-import { AiOutlineDelete } from "react-icons/ai";
 import { FaRoute } from "react-icons/fa";
 import { AiOutlineClear } from "react-icons/ai";
 import Switch from "./Switch";
@@ -7,22 +6,20 @@ import "./PathNodes.css";
 
 export const PathNode = ({
   node,
-  index,
   simStatusOn,
   isEndPoint,
-  handleEndPointDelete,
   handleNodeClick,
   handleToggleNode
 }) => {
   if (node === null) {
     return <></>;
   } else {
-    return <div className="drag-item-container">
+    return <div className="path-node">
       <div
-        className="drag-item-text"
+        className="path-node-text"
         onClick={() => handleNodeClick(node)}
       >{`Node ID: ${node.id}`}</div>
-      {isEndPoint ? <></> : <>
+      {isEndPoint ? <></> :
         <Switch
           id={node.id}
           isOn={simStatusOn}
@@ -30,15 +27,7 @@ export const PathNode = ({
           handleToggle={() => {
             handleToggleNode(node);
           }}
-        />
-      </>}
-      {isEndPoint ? <>
-        <AiOutlineDelete
-          className="drag-item-button"
-          size="2em"
-          onClick={() => handleEndPointDelete(node.id)}
-        />
-      </> : <></>}
+        />}
     </div>
   }
 }
@@ -48,42 +37,43 @@ const PathNodes = ({
   startNode,
   endNode,
   path,
+  totalCost,
   disabledNodes,
-  handleEndPointDelete,
   handleNodeClick,
   handleToggleNode,
   handlePlotPath,
   handleClearPath
-}) => (
-  <div id="path-nodes">
-    <PathNode 
+}) => {
+  return <div id="path-nodes">
+    <PathNode
+      key={0}
       node={startNode}
       simStatusOn={!disabledNodes.has(startNode)}
       isEndPoint={true}
-      handleEndPointDelete={handleEndPointDelete}
       handleNodeClick={handleNodeClick}
       handleToggleNode={handleToggleNode}
     />
     {path.map((item, index) => (
       index === 0 || index === path.length - 1 ? <></> :
-      <PathNode
-        key={index}
-        node={item}
-        index={index}
-        simStatusOn={!disabledNodes.has(item)}
-        isEndPoint={false}
-        handleNodeClick={handleNodeClick}
-        handleToggleNode={handleToggleNode}
-      />
+        <PathNode
+          key={index}
+          node={item}
+          index={index}
+          simStatusOn={!disabledNodes.has(item)}
+          isEndPoint={false}
+          handleNodeClick={handleNodeClick}
+          handleToggleNode={handleToggleNode}
+        />
     ))}
-    <PathNode 
+    <PathNode
+      key={path.length - 1}
       node={endNode}
       simStatusOn={!disabledNodes.has(endNode)}
       isEndPoint={true}
-      handleEndPointDelete={handleEndPointDelete}
       handleNodeClick={handleNodeClick}
       handleToggleNode={handleToggleNode}
     />
+    {path.length > 0 ? <div>Total Cost: {totalCost}</div> : <></>}
     {startNode !== null && endNode !== null ? (
       <div className="custom-button-group">
         <div className="custom-button" onClick={handlePlotPath}>
@@ -99,6 +89,6 @@ const PathNodes = ({
       <></>
     )}
   </div>
-);
+};
 
 export default PathNodes;
