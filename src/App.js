@@ -244,8 +244,8 @@ function App() {
       map.current.removeSource("path");
     }
     map.current.setPaintProperty("active_nodes", "circle-opacity", 1);
-    setStartNode(null);
-    setEndNode(null);
+    // setStartNode(null);
+    // setEndNode(null);
     setDisabledNodes(new Set());
     setPath([]);
     setFocusedNode(null);
@@ -405,7 +405,7 @@ function App() {
         <PathNodes
           startNode={startNode}
           endNode={endNode}
-          path={path.map((nodeWeight) => nodeWeight["node"])}
+          path={path}
           totalCost={path.reduce((acc, nodeWeight) => acc + nodeWeight["weight"], 0)}
           disabledNodes={disabledNodes}
           handleNodeClick={handleNodeClick}

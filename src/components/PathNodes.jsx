@@ -5,31 +5,42 @@ import Switch from "./Switch";
 import "./PathNodes.css";
 
 export const PathNode = ({
-  node,
+  nodeWeight,
+  index,
   simStatusOn,
   isEndPoint,
   handleNodeClick,
   handleToggleNode
 }) => {
-  if (node === null) {
+  console.log(nodeWeight);
+  if (!nodeWeight || nodeWeight["node"] === null || nodeWeight["node"] === undefined) {
     return <></>;
   } else {
-    return <div className="path-node">
-      <div
-        className="path-node-text"
-        onClick={() => handleNodeClick(node)}
-      >{`Node ID: ${node.id}`}</div>
-      {isEndPoint ? <></> :
-        <Switch
-          id={node.id}
-          isOn={simStatusOn}
-          onColor="#428ef2"
-          handleToggle={() => {
-            handleToggleNode(node);
-          }}
-        />}
+    return <div key={index} className="edge-and-node">
+      {nodeWeight["weight"] !== 0 ? <Edge cost={nodeWeight["weight"]} /> : <></>}
+      <div className="path-node">
+        <div
+          className="path-node-text  clickable"
+          onClick={() => handleNodeClick(nodeWeight["node"])}
+        >{`Node ID: ${nodeWeight["node"].id}`}</div>
+        {isEndPoint ? <></> :
+          <Switch
+            id={nodeWeight["node"].id}
+            isOn={simStatusOn}
+            onColor="#428ef2"
+            handleToggle={() => {
+              handleToggleNode(nodeWeight["node"]);
+            }}
+          />}
+      </div>
     </div>
   }
+}
+
+const Edge = ({ cost }) => {
+  return <div className="edge">
+    <div className="edge-cost">Edge Cost: {cost}</div>
+  </div>;
 }
 
 
@@ -47,43 +58,44 @@ const PathNodes = ({
   return <div id="path-nodes">
     <PathNode
       key={0}
-      node={startNode}
+      nodeWeight={{ "node": startNode, "weight": startNode && path[0] ? path[0]["weight"] : 0 }}
+      index={0}
       simStatusOn={!disabledNodes.has(startNode)}
       isEndPoint={true}
       handleNodeClick={handleNodeClick}
       handleToggleNode={handleToggleNode}
     />
-    {path.map((item, index) => (
-      index === 0 || index === path.length - 1 ? <></> :
-        <PathNode
-          key={index}
-          node={item}
-          index={index}
-          simStatusOn={!disabledNodes.has(item)}
-          isEndPoint={false}
-          handleNodeClick={handleNodeClick}
-          handleToggleNode={handleToggleNode}
-        />
+    {path.slice(1, -1).map((item, index) => (
+      <PathNode
+        key={index}
+        nodeWeight={item}
+        index={index}
+        simStatusOn={!disabledNodes.has(item["node"])}
+        isEndPoint={false}
+        handleNodeClick={handleNodeClick}
+        handleToggleNode={handleToggleNode}
+      />
     ))}
     <PathNode
       key={path.length - 1}
-      node={endNode}
+      nodeWeight={{ "node": endNode, "weight": endNode && path[path.length - 1] ? path[path.length - 1]["weight"] : 0 }}
+      index={path.length - 1}
       simStatusOn={!disabledNodes.has(endNode)}
       isEndPoint={true}
       handleNodeClick={handleNodeClick}
       handleToggleNode={handleToggleNode}
     />
-    {path.length > 0 ? <div>Total Cost: {totalCost}</div> : <></>}
+    {path.length > 0 ? <div className="total-cost">Total Cost: {totalCost}</div> : <></>}
     {startNode !== null && endNode !== null ? (
       <div className="custom-button-group">
-        <div className="custom-button" onClick={handlePlotPath}>
+        <div className="custom-button clickable" onClick={handlePlotPath}>
           <FaRoute className="custom-button-icon" />
           <div>Plot Path</div>
         </div>
-        <div className="custom-button" onClick={handleClearPath}>
+        {path.length > 0 ? <div className="custom-button clickable" onClick={handleClearPath}>
           <AiOutlineClear className="custom-button-icon" />
           <div>Clear Path</div>
-        </div>
+        </div> : <></>}
       </div>
     ) : (
       <></>
