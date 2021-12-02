@@ -2,32 +2,11 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  align-items: flex-start;
-}
-
-.path-node {
-  display: flex;
   align-items: center;
-}
-
-.edge-and-node {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-}
-
-.path-node-text {
-  margin: 10px;
-  border: 1px solid white;
-  border-radius: 4px;
-  padding: 7px;
-  width: 125px;
-  height: 15px;
 }
 
 .edge-cost, .total-cost{
   margin: 5px;
-  margin-left: 20px;
 }
 
 .custom-button-group {

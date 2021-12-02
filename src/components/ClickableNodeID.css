@@ -1,0 +1,8 @@
+.clickable-node-id {
+  margin: 10px;
+  border: 1px solid white;
+  border-radius: 4px;
+  padding: 7px;
+  width: 125px;
+  height: 15px;
+}

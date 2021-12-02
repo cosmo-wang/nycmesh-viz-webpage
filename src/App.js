@@ -5,12 +5,15 @@ import Popup from "./components/Popup";
 import PathNodes from "./components/PathNodes";
 import DisabledNodes from "./components/DisabledNodes";
 import NodeSearchBox from "./components/NodeSearchBox";
+import { distanceInKmBetweenCoordinates } from "./Utils";
 import "./App.css";
 
 mapboxgl.accessToken =
   "pk.eyJ1IjoiY29zbW93YW5nIiwiYSI6ImNqdWl0bG50ODFlZ2w0ZnBnc3VyejZmbWQifQ.5TjxQgPSj6B7VcFkvSfqBA";
 
 const SERVER_URL = "http://localhost:3000/";
+
+const SUPERNODES = ["713", "227"];
 
 function App() {
   const mapContainer = useRef(null);
@@ -180,27 +183,62 @@ function App() {
     [idToNodes]
   );
 
-  const showPopup = useCallback(
-    (node) => {
-      const popupNode = document.createElement("div");
-      ReactDOM.render(
-        <Popup
-          node={node}
-          handleAddStart={handleAddStart}
-          handleAddEnd={handleAddEnd}
-        />,
-        popupNode
-      );
-      popUpRef.current
-        .setLngLat([node.lng, node.lat])
-        .setDOMContent(popupNode)
-        .setMaxWidth("300px")
-        .addTo(map.current);
-    },
-    [handleAddStart, handleAddEnd]
-  );
+  const handleFindEdges = async (node) => {
+    const queryURL = `${SERVER_URL}get_edges?node=${node.nn}`;
+    fetch(queryURL)
+      .then((res) => res.json())
+      .then((resJson) => {
+        console.log(resJson);
+      })
+      .catch((error) => {
+        console.log(error);
+        alert("Failed to fetch nodes information.");
+      });
+  }
 
-
+  const handleFindPathToInternet = useCallback(async (node) => {
+    setFocusedNode(null);
+    popUpRef.current.remove();
+    Promise.all(SUPERNODES.map(supernode =>
+      fetch(`${SERVER_URL}path_finding?node1=${node.nn}&node2=${supernode}`)))
+      .then(responses => Promise.all(responses.map(res => res.json())))
+      .then(resJsons => {
+        resJsons.sort((path1, path2) => {
+          const path1Cost = path1.reduce((acc, nodeWeight) => acc + nodeWeight["weight"], 0);
+          const path2Cost = path2.reduce((acc, nodeWeight) => acc + nodeWeight["weight"], 0);
+          if (path1Cost === path2Cost) {
+            if (path1.length === path2.length) {
+              const end1Lat = nnToNodes[path1[path1.length - 1]["node"]].lat;
+              const end1Lng = nnToNodes[path1[path1.length - 1]["node"]].lng;
+              const distToEnd1 = distanceInKmBetweenCoordinates(node.lat, node.lng, end1Lat, end1Lng);
+              const end2Lat = nnToNodes[path2[path2.length - 1]["node"]].lat;
+              const end2Lng = nnToNodes[path2[path2.length - 1]["node"]].lng;
+              const distToEnd2 = distanceInKmBetweenCoordinates(node.lat, node.lng, end2Lat, end2Lng);
+              return distToEnd1 - distToEnd2;
+            } else {
+              return path1.length - path2.length;
+            }
+          } else {
+            return path1Cost - path2Cost;
+          }
+        });
+        return resJsons[0];
+      })
+      .then(pathToInternet => {
+        setStartNode(node);
+        setEndNode(nnToNodes[pathToInternet[pathToInternet.length - 1]["node"]]);
+        setPath(pathToInternet.map((node) => {
+          return {
+            "node": nnToNodes[node["node"]],
+            "weight": node["weight"]
+          }
+        }));
+      })
+      .catch(err => {
+        console.log(err);
+        alert(`Node ${node.id} is not connected to the Internet.`);
+      });
+  }, [nnToNodes]);
 
   const handleNodeClick = (node) => {
     setFocusedNode(node);
@@ -218,7 +256,7 @@ function App() {
     }
   };
 
-  const handleToggleNode = (node) => {
+  const handleToggleNode = useCallback((node) => {
     const newDisabledNodes = new Set(disabledNodes);
     if (disabledNodes.has(node)) {
       newDisabledNodes.delete(node);
@@ -226,11 +264,11 @@ function App() {
       newDisabledNodes.add(node);
     }
     setDisabledNodes(newDisabledNodes);
-  };
+  }, [disabledNodes]);
 
   const handlePlotPath = () => {
-    popUpRef.current.remove();
     setFocusedNode(null);
+    popUpRef.current.remove();
     queryPath(startNode, endNode);
   };
 
@@ -244,8 +282,6 @@ function App() {
       map.current.removeSource("path");
     }
     map.current.setPaintProperty("active_nodes", "circle-opacity", 1);
-    // setStartNode(null);
-    // setEndNode(null);
     setDisabledNodes(new Set());
     setPath([]);
     setFocusedNode(null);
@@ -329,8 +365,25 @@ function App() {
   // event handler for nodes on-click
   useEffect(() => {
     if (!focusedNode) return;
-    showPopup(focusedNode);
-  }, [focusedNode, showPopup]);
+    const popupNode = document.createElement("div");
+    ReactDOM.render(
+      <Popup
+        node={focusedNode}
+        simStatusOn={!disabledNodes.has(focusedNode)}
+        handleAddStart={handleAddStart}
+        handleAddEnd={handleAddEnd}
+        handleToggleNode={handleToggleNode}
+        handleFindEdges={handleFindEdges}
+        handleFindPathToInternet={handleFindPathToInternet}
+      />,
+      popupNode
+    );
+    popUpRef.current
+      .setLngLat([focusedNode.lng, focusedNode.lat])
+      .setDOMContent(popupNode)
+      .setMaxWidth("300px")
+      .addTo(map.current);
+  }, [focusedNode, disabledNodes, handleAddStart, handleAddEnd, handleToggleNode, handleFindPathToInternet]);
 
   // render a path on the map
   useEffect(() => {
@@ -341,8 +394,6 @@ function App() {
     }
     // make all nodes more transparent
     map.current.setPaintProperty("active_nodes", "circle-opacity", 0.3);
-    // add nodes layer for nodes along the path
-    addNodesLayer("path_nodes", path.map((nodeWeight) => nodeWeight["node"]));
 
     const edgeFeatureCollection = [];
     for (let i = 1; i < path.length; i++) {
@@ -381,6 +432,10 @@ function App() {
         "line-width": 5,
       },
     });
+
+    // add nodes layer for nodes along the path
+    addNodesLayer("path_nodes", path.map((nodeWeight) => nodeWeight["node"]));
+
     const popup = new mapboxgl.Popup({
       closeButton: false,
       closeOnClick: false
@@ -406,7 +461,6 @@ function App() {
           startNode={startNode}
           endNode={endNode}
           path={path}
-          totalCost={path.reduce((acc, nodeWeight) => acc + nodeWeight["weight"], 0)}
           disabledNodes={disabledNodes}
           handleNodeClick={handleNodeClick}
           handleToggleNode={handleToggleNode}

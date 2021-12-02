@@ -1,0 +1,70 @@
+.node-popup {
+  padding: 10px;
+  display: grid;
+  grid-template-columns: 65% 35%;
+  grid-template-rows: 20% auto auto auto;
+  grid-template-areas: 
+    "type switch"
+    "info path-buttons"
+    "info edge-buttons"
+    "info internet-button";
+  grid-gap: 10px;
+}
+
+.node-type {
+  grid-area: type;
+  justify-self: center;
+  font-size: 15pt;
+}
+
+.node-switch {
+  justify-self: center;
+}
+
+.node-info {
+  grid-area: info;
+  border: 1px solid black;
+  border-radius: 5px;
+  padding: 10px;
+  display: grid;
+  grid-template-rows: auto auto auto;
+}
+
+.node-info div {
+  font-size: 13pt;
+}
+
+.node-id {
+  border-bottom: 1px solid black;
+  padding-bottom: 10px;
+}
+
+.network-number {
+  border-bottom: 1px solid black;
+  padding: 10px 0;
+}
+
+.coordinates {
+  padding-top: 10px;
+}
+
+.node-popup button {
+  width: 90%;
+}
+
+.node-switch {
+  grid-area: switch;
+  align-self: center;
+}
+
+.path-buttons {
+  grid-area: path-buttons;
+}
+
+.edge-buttons {
+  grid-area: edge-buttons;
+}
+
+.internet-button {
+  grid-area: internet-button;
+}
