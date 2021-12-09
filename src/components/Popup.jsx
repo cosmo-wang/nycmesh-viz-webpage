@@ -27,6 +27,7 @@ const Popup = ({
     <div className="node-info">
       <div className="node-id"><b>ID:</b> {node.id}</div>
       <div className="network-number"><b>Network Number:</b> {node.nn}</div>
+      <div className="node-ip"><b>IP:</b> {node.ip}</div>
       <div className="coordinates"><b>Coordinates:</b> {node.lng}, {node.lat}</div>
     </div>
     <div className="path-buttons">
@@ -38,8 +39,8 @@ const Popup = ({
       </Button>
     </div>
     <div className="edge-buttons">
-      <Button className="clickable" >Get Edges</Button>
-      <Button className="clickable" >Get Edges (Hard)</Button>
+      <Button className="clickable" onClick={() => handleFindEdges(node, false)}>Get Edges</Button>
+      <Button className="clickable" onClick={() => handleFindEdges(node, true)} >Get Edges (Hard)</Button>
     </div>
     <Button className="internet-button clickable" onClick={() => handleFindPathToInternet(node)}>Find Path to Internet</Button>
   </div>

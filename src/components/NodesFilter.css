@@ -1,0 +1,31 @@
+#nodes-filter {
+  display: grid;
+  grid-template-columns: 85% 15%;
+  grid-template-rows: auto auto auto;
+  grid-template-areas: 
+    "total-count ."
+    "active-count active-switch"
+    "inactive-count inactive-switch";
+}
+
+.total-count {
+  grid-area: total-count;
+}
+
+.active-count {
+  align-self: end;
+  grid-area: active-count;
+}
+
+.active-switch {
+  grid-area: active-switch;
+}
+
+.inactive-count {
+  align-self: end;
+  grid-area: inactive-count;
+}
+
+.inactive-switch {
+  grid-area: inactive-switch;
+}

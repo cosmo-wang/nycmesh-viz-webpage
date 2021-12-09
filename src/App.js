@@ -5,6 +5,8 @@ import Popup from "./components/Popup";
 import PathNodes from "./components/PathNodes";
 import DisabledNodes from "./components/DisabledNodes";
 import NodeSearchBox from "./components/NodeSearchBox";
+import EdgesOfNode from "./components/EdgesOfNode";
+import NodesFilter from "./components/NodesFilter";
 import { distanceInKmBetweenCoordinates } from "./Utils";
 import "./App.css";
 
@@ -13,6 +15,10 @@ mapboxgl.accessToken =
 
 const SERVER_URL = "http://localhost:3000/";
 
+const INIT_LNG = -73.9332;
+const INIT_LAT = 40.7051;
+const INIT_ZOOM = 10.75;
+
 const SUPERNODES = ["713", "227"];
 
 function App() {
@@ -20,25 +26,30 @@ function App() {
   const map = useRef(null);
   const popUpRef = useRef(new mapboxgl.Popup({ offset: 15 }));
 
-  const [lng, setLng] = useState(-73.9332);
-  const [lat, setLat] = useState(40.7051);
-  const [zoom, setZoom] = useState(10.75);
+  const [lng, setLng] = useState(INIT_LNG);
+  const [lat, setLat] = useState(INIT_LAT);
+  const [zoom, setZoom] = useState(INIT_ZOOM);
   // nodes info
-  const [nodes, setNodes] = useState([]);
+  const [inactiveNodes, setInactiveNodes] = useState([]);
+  const [showInactiveNodes, setShowInactiveNodes] = useState(false);
+  const [showActiveNodes, setShowActiveNodes] = useState(true);
+  const [activeNodes, setActiveNodes] = useState([]);
   const [idToNodes, setIdToNodes] = useState(null);
   const [nnToNodes, setNnToNodes] = useState(null);
   const [startNode, setStartNode] = useState(null);
   const [endNode, setEndNode] = useState(null);
   const [disabledNodes, setDisabledNodes] = useState(new Set());
   const [path, setPath] = useState([]);
+  const [nodeToCheckEdges, setNodeToCheckEdges] = useState(null);
+  const [edgesOfNode, setEdgesOfNode] = useState([]);
   const [focusedNode, setFocusedNode] = useState(null);
 
-  const addNodesLayer = (id, nodesData) => {
-    if (map.current.getLayer(id)) {
-      map.current.removeLayer(id);
-      map.current.removeSource(id);
+  const addNodesLayer = useCallback((layerId, nodesData) => {
+    if (map.current.getLayer(layerId)) {
+      map.current.removeLayer(layerId);
+      map.current.removeSource(layerId);
     }
-    map.current.addSource(id, {
+    map.current.addSource(layerId, {
       type: "geojson",
       data: {
         type: "FeatureCollection",
@@ -48,8 +59,8 @@ function App() {
       },
     });
     map.current.addLayer({
-      id: id,
-      source: id,
+      id: layerId,
+      source: layerId,
       type: "circle",
       paint: {
         "circle-radius": [
@@ -74,7 +85,59 @@ function App() {
         ],
       },
     });
-  };
+  }, []);
+
+  const addLineStringsLayer = useCallback((layerId, lineStringsData, nodesData) => {
+    if (!map.current.loaded()) return; // wait for map to initialize
+    if (map.current.getLayer(layerId)) {
+      map.current.removeLayer(layerId);
+      map.current.removeSource(layerId);
+    }
+    // make all nodes more transparent
+    console.log("addLineStrings");
+    map.current.setPaintProperty("active_nodes", "circle-opacity", 0.3);
+
+    map.current.addSource(layerId, {
+      type: "geojson",
+      data: {
+        type: "FeatureCollection",
+        features: lineStringsData
+      }
+    });
+
+    map.current.addLayer({
+      id: layerId,
+      type: "line",
+      source: layerId,
+      layout: {
+        "line-join": "round",
+        "line-cap": "round",
+      },
+      paint: {
+        "line-color": "#006eff",
+        "line-width": 5,
+      },
+    });
+
+    // add nodes layer for nodes along the path
+    addNodesLayer("highlight_nodes", nodesData);
+
+    const popup = new mapboxgl.Popup({
+      closeButton: false,
+      closeOnClick: false
+    });
+    // Show current edge cost in popup when hovered
+    map.current.on("mouseenter", layerId, (e) => {
+      map.current.getCanvas().style.cursor = "pointer";
+      popup.setLngLat(e.lngLat).setHTML(`<p>Cost: ${e.features[0].properties.weight}</p>`).addTo(map.current);
+    });
+    // Change it back to a pointer when it leaves.
+    map.current.on("mouseleave", layerId, () => {
+      map.current.getCanvas().style.cursor = "";
+      popup.remove();
+    });
+
+  }, [addNodesLayer]);
 
   const fetchNodes = async () => {
     const queryURL = `${SERVER_URL}fetch_nodes`;
@@ -84,15 +147,17 @@ function App() {
         const supernodes = [];
         const hubs = [];
         const normalNodes = [];
+        const inactive = [];
         resJson.forEach((rawNode) => {
           const nodeObj = {
             id: rawNode.id,
             nn: rawNode.nn,
+            ip: rawNode.ip,
             lat: rawNode.lat,
             lng: rawNode.lng,
             alt: rawNode.alt,
             type: rawNode.type,
-            statusOn: rawNode.active,
+            statusOn: rawNode.ip !== undefined,
             toGeoJson() {
               return {
                 type: "Feature",
@@ -111,18 +176,24 @@ function App() {
               return [this.lng, this.lat];
             },
           };
-          if (rawNode.type === "supernode") {
-            supernodes.push(nodeObj);
-          } else if (rawNode.type === "hub") {
-            hubs.push(nodeObj);
+          if (nodeObj.statusOn) {
+            if (rawNode.type === "supernode") {
+              supernodes.push(nodeObj);
+            } else if (rawNode.type === "hub") {
+              hubs.push(nodeObj);
+            } else {
+              normalNodes.push(nodeObj);
+            }
           } else {
-            normalNodes.push(nodeObj);
+            inactive.push(nodeObj);
           }
         });
-        setNodes(normalNodes.concat(hubs).concat(supernodes));
+        setActiveNodes(normalNodes.concat(hubs).concat(supernodes));
+        setInactiveNodes(inactive);
       })
       .catch((error) => {
-        setNodes([]);
+        setActiveNodes([]);
+        setInactiveNodes([]);
         console.log(error);
         alert("Failed to fetch nodes information.");
       });
@@ -138,11 +209,9 @@ function App() {
       });
       queryURL += `&disabled_node=${disabledQueryStr}`;
     }
-    console.log(queryURL);
     fetch(queryURL)
       .then((res) => res.json())
       .then((resJson) => {
-        console.log(resJson);
         let pathToPlot;
         if (resJson.length > 0) {
           pathToPlot = resJson.map((node) => {
@@ -151,14 +220,13 @@ function App() {
               "weight": node["weight"]
             }
           });
-          console.log(pathToPlot);
+          setPath(pathToPlot);
         } else {
           pathToPlot = [];
           alert(
             `Failed to find a path between ${startNode.id} and ${endNode.id}.`
           );
         }
-        setPath(pathToPlot);
       })
       .catch((error) => {
         console.log(error);
@@ -183,18 +251,49 @@ function App() {
     [idToNodes]
   );
 
-  const handleFindEdges = async (node) => {
-    const queryURL = `${SERVER_URL}get_edges?node=${node.nn}`;
+  const handleFindEdges = useCallback(async (node, hard) => {
+    if (hard) {
+      if (!window.confirm("This operation will ping the node to get its edges" +
+          " and might take up to a minute to finish. " +
+          "Additionally, edges that are not already in the cache will NOT be added to the server cache. " + 
+          "Are you sure you want to proceed?")) {
+        return;
+      }
+    }
+    const queryURL = `${SERVER_URL}fetch_edges${hard ? '_hard' : ''}?node=${node.nn}`;
     fetch(queryURL)
       .then((res) => res.json())
       .then((resJson) => {
-        console.log(resJson);
+        setNodeToCheckEdges(node);
+        setEdgesOfNode(resJson);
+        setFocusedNode(null);
+        popUpRef.current.remove();
+        const edgeFeatureCollection = [];
+        const highlightNodes = [node];
+        for (let i = 0; i < resJson.length; i++) {
+          const edge = resJson[i];
+          if (nnToNodes[edge["nn"]] !== undefined) {
+            highlightNodes.push(nnToNodes[edge["nn"]]);
+            edgeFeatureCollection.push({
+              type: "Feature",
+              properties: {
+                weight: edge["cost"],
+              },
+              geometry: {
+                type: "LineString",
+                coordinates: [node.getCoordinates(), nnToNodes[edge["nn"]].getCoordinates()],
+              },
+            });
+          }
+        }
+        console.log("here1");
+        addLineStringsLayer("edges_of_node", edgeFeatureCollection, highlightNodes);
       })
       .catch((error) => {
         console.log(error);
-        alert("Failed to fetch nodes information.");
+        alert(`Failed to fetch edges of node ${node.id}.`);
       });
-  }
+  }, [addLineStringsLayer, nnToNodes]);
 
   const handleFindPathToInternet = useCallback(async (node) => {
     setFocusedNode(null);
@@ -204,22 +303,28 @@ function App() {
       .then(responses => Promise.all(responses.map(res => res.json())))
       .then(resJsons => {
         resJsons.sort((path1, path2) => {
-          const path1Cost = path1.reduce((acc, nodeWeight) => acc + nodeWeight["weight"], 0);
-          const path2Cost = path2.reduce((acc, nodeWeight) => acc + nodeWeight["weight"], 0);
-          if (path1Cost === path2Cost) {
-            if (path1.length === path2.length) {
-              const end1Lat = nnToNodes[path1[path1.length - 1]["node"]].lat;
-              const end1Lng = nnToNodes[path1[path1.length - 1]["node"]].lng;
-              const distToEnd1 = distanceInKmBetweenCoordinates(node.lat, node.lng, end1Lat, end1Lng);
-              const end2Lat = nnToNodes[path2[path2.length - 1]["node"]].lat;
-              const end2Lng = nnToNodes[path2[path2.length - 1]["node"]].lng;
-              const distToEnd2 = distanceInKmBetweenCoordinates(node.lat, node.lng, end2Lat, end2Lng);
-              return distToEnd1 - distToEnd2;
-            } else {
-              return path1.length - path2.length;
-            }
+          if (path1.length === 0) {
+            return 1;
+          } else if (path2.length === 0) {
+            return -1;
           } else {
-            return path1Cost - path2Cost;
+            const path1Cost = path1.reduce((acc, nodeWeight) => acc + nodeWeight["weight"], 0);
+            const path2Cost = path2.reduce((acc, nodeWeight) => acc + nodeWeight["weight"], 0);
+            if (path1Cost === path2Cost) {
+              if (path1.length === path2.length) {
+                const end1Lat = nnToNodes[path1[path1.length - 1]["node"]].lat;
+                const end1Lng = nnToNodes[path1[path1.length - 1]["node"]].lng;
+                const distToEnd1 = distanceInKmBetweenCoordinates(node.lat, node.lng, end1Lat, end1Lng);
+                const end2Lat = nnToNodes[path2[path2.length - 1]["node"]].lat;
+                const end2Lng = nnToNodes[path2[path2.length - 1]["node"]].lng;
+                const distToEnd2 = distanceInKmBetweenCoordinates(node.lat, node.lng, end2Lat, end2Lng);
+                return distToEnd1 - distToEnd2;
+              } else {
+                return path1.length - path2.length;
+              }
+            } else {
+              return path1Cost - path2Cost;
+            }
           }
         });
         return resJsons[0];
@@ -273,9 +378,9 @@ function App() {
   };
 
   const handleClearPath = () => {
-    if (map.current.getLayer("path_nodes")) {
-      map.current.removeLayer("path_nodes");
-      map.current.removeSource("path_nodes");
+    if (map.current.getLayer("highlight_nodes")) {
+      map.current.removeLayer("highlight_nodes");
+      map.current.removeSource("highlight_nodes");
     }
     if (map.current.getLayer("path")) {
       map.current.removeLayer("path");
@@ -287,6 +392,74 @@ function App() {
     setFocusedNode(null);
     popUpRef.current.remove();
   };
+
+  const handleToggleNodesLayer = (isActiveNodes) => {
+    if (isActiveNodes) {
+      if (showActiveNodes) {
+        if (map.current.getLayer("active_nodes")) {
+          map.current.removeLayer("active_nodes");
+          map.current.removeSource("active_nodes");
+        }
+      } else {
+        addNodesLayer("active_nodes", activeNodes);
+      }
+      setShowActiveNodes(!showActiveNodes);
+    } else {
+      if (showInactiveNodes) {
+        if (map.current.getLayer("inactive_nodes")) {
+          map.current.removeLayer("inactive_nodes");
+          map.current.removeSource("inactive_nodes");
+        }
+      } else {
+        if (map.current.getLayer("inactive_nodes")) {
+          map.current.removeLayer("inactive_nodes");
+          map.current.removeSource("inactive_nodes");
+        }
+        map.current.addSource("inactive_nodes", {
+          type: "geojson",
+          data: {
+            type: "FeatureCollection",
+            features: inactiveNodes.map((node) => node.toGeoJson()),
+          },
+        });
+        map.current.addLayer({
+          id: "inactive_nodes",
+          source: "inactive_nodes",
+          type: "circle",
+          paint: {
+            "circle-radius": [
+              "case",
+              ["==", ["get", "node_type"], "supernode"],
+              12,
+              ["==", ["get", "node_type"], "hub"],
+              9,
+              ["==", ["get", "node_type"], "node"],
+              7,
+              7,
+            ],
+            "circle-color": "#646464",
+          },
+        });
+      }
+      setShowInactiveNodes(!showInactiveNodes);
+    }
+  }
+
+  const handleClearEdges = () => {
+    if (map.current.getLayer("highlight_nodes")) {
+      map.current.removeLayer("highlight_nodes");
+      map.current.removeSource("highlight_nodes");
+    }
+    if (map.current.getLayer("edges_of_node")) {
+      map.current.removeLayer("edges_of_node");
+      map.current.removeSource("edges_of_node");
+    }
+    map.current.setPaintProperty("active_nodes", "circle-opacity", 1);
+    setEdgesOfNode([]);
+    setNodeToCheckEdges(null);
+    setFocusedNode(null);
+    popUpRef.current.remove();
+  }
 
   // initialize the map
   useEffect(() => {
@@ -306,12 +479,6 @@ function App() {
         showUserHeading: true,
       })
     );
-    map.current.addControl(
-      new mapboxgl.ScaleControl({
-        maxWidth: 80,
-        unit: "imperial",
-      })
-    );
     map.current.addControl(new mapboxgl.NavigationControl());
     fetchNodes(); // fetch nodes info only once
     map.current.on("move", () => {
@@ -319,31 +486,28 @@ function App() {
       setLat(map.current.getCenter().lat.toFixed(4));
       setZoom(map.current.getZoom().toFixed(2));
     });
-    console.log("Rending map");
-  });
+  }, [lat, lng, zoom]);
 
   // after fetching nodes, set up the mapping from id to references to node objects
   useEffect(() => {
     const newIdToNodes = new Map();
-    nodes.forEach((node) => {
+    activeNodes.forEach((node) => {
       newIdToNodes[node.id] = node;
     });
     setIdToNodes(newIdToNodes);
     const newNnToNodes = new Map();
-    nodes.forEach((node) => {
+    activeNodes.forEach((node) => {
       newNnToNodes[node.nn] = node;
     });
     setNnToNodes(newNnToNodes);
-    console.log("setting up mappings");
-  }, [nodes]);
+  }, [activeNodes]);
 
-  // render nodes on the map
+  // render active nodes on the map
   useEffect(() => {
-    if (map.current.loaded()) {
-      addNodesLayer("active_nodes", nodes);
-    }
-    console.log("rendering nodes");
-  }, [nodes]);
+    map.current.on('load', () => {
+      addNodesLayer("active_nodes", activeNodes);
+    })
+  }, [activeNodes, addNodesLayer]);
 
   // add click pop-up to all active nodes
   useEffect(() => {
@@ -359,7 +523,6 @@ function App() {
     map.current.on("mouseleave", "active_nodes", () => {
       map.current.getCanvas().style.cursor = "";
     });
-    // console.log("rendering pop-up listeners");
   });
 
   // event handler for nodes on-click
@@ -383,79 +546,34 @@ function App() {
       .setDOMContent(popupNode)
       .setMaxWidth("300px")
       .addTo(map.current);
-  }, [focusedNode, disabledNodes, handleAddStart, handleAddEnd, handleToggleNode, handleFindPathToInternet]);
+  }, [focusedNode, disabledNodes, handleFindEdges, handleAddStart, handleAddEnd, handleToggleNode, handleFindPathToInternet]);
 
   // render a path on the map
   useEffect(() => {
-    if (!map.current.loaded()) return; // wait for map to initialize
-    if (map.current.getLayer("path")) {
-      map.current.removeLayer("path");
-      map.current.removeSource("path");
-    }
-    // make all nodes more transparent
-    map.current.setPaintProperty("active_nodes", "circle-opacity", 0.3);
-
-    const edgeFeatureCollection = [];
-    for (let i = 1; i < path.length; i++) {
-      const start = path[i - 1];
-      const end = path[i];
-      edgeFeatureCollection.push({
-        type: "Feature",
-        properties: {
-          weight: end["weight"],
-        },
-        geometry: {
-          type: "LineString",
-          coordinates: [start["node"].getCoordinates(), end["node"].getCoordinates()],
-        },
-      });
-    }
-
-    map.current.addSource("path", {
-      type: "geojson",
-      data: {
-        type: "FeatureCollection",
-        features: edgeFeatureCollection
+    if (path.length > 0) {
+      const edgeFeatureCollection = [];
+      for (let i = 1; i < path.length; i++) {
+        const start = path[i - 1];
+        const end = path[i];
+        edgeFeatureCollection.push({
+          type: "Feature",
+          properties: {
+            weight: end["weight"],
+          },
+          geometry: {
+            type: "LineString",
+            coordinates: [start["node"].getCoordinates(), end["node"].getCoordinates()],
+          },
+        });
       }
-    });
-
-    map.current.addLayer({
-      id: "path",
-      type: "line",
-      source: "path",
-      layout: {
-        "line-join": "round",
-        "line-cap": "round",
-      },
-      paint: {
-        "line-color": "#006eff",
-        "line-width": 5,
-      },
-    });
-
-    // add nodes layer for nodes along the path
-    addNodesLayer("path_nodes", path.map((nodeWeight) => nodeWeight["node"]));
-
-    const popup = new mapboxgl.Popup({
-      closeButton: false,
-      closeOnClick: false
-    });
-    // Show current edge cost in popup when hovered
-    map.current.on("mouseenter", "path", (e) => {
-      map.current.getCanvas().style.cursor = "pointer";
-      popup.setLngLat(e.lngLat).setHTML(`<p>Cost: ${e.features[0].properties.weight}</p>`).addTo(map.current);
-    });
-    // Change it back to a pointer when it leaves.
-    map.current.on("mouseleave", "path", () => {
-      map.current.getCanvas().style.cursor = "";
-      popup.remove();
-    });
-    console.log("rendering path")
-  }, [path]);
+      console.log("here2");
+      addLineStringsLayer("path", edgeFeatureCollection, path.map((nodeWeight) => nodeWeight["node"]));
+    }
+  }, [path, addLineStringsLayer]);
 
   return (
-    <div>
-      <div id="floating-window">
+    <div id="window-container">
+      <div id="utility-area" className="floating-window">
         <NodeSearchBox handleNodeSearch={handleNodeSearch} />
         <PathNodes
           startNode={startNode}
@@ -476,11 +594,26 @@ function App() {
               handleToggleNode={handleToggleNode}
             />
           </>
-        ) : (
-          <></>
-        )}
+        ) : <></>}
+        {edgesOfNode.length > 0 ? (
+          <>
+            <div className="divider"></div>
+            <EdgesOfNode
+              node={nodeToCheckEdges}
+              endPoints={edgesOfNode.map(edge => nnToNodes[edge["nn"]])}
+              handleNodeClick={handleNodeClick}
+              handleClearEdges={handleClearEdges}
+            />
+          </>
+        ) : <></>}
       </div>
-      <div ref={mapContainer} className="map-container" />
+      <NodesFilter
+        activeCount={activeNodes.length}
+        showActiveNodes={showActiveNodes}
+        showInactiveNodes={showInactiveNodes}
+        inactiveCount={inactiveNodes.length}
+        handleToggleNodesLayer={handleToggleNodesLayer} />
+      <div ref={mapContainer} id="map-container" />
     </div>
   );
 }

@@ -1,0 +1,11 @@
+#edges-of-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.node-to-show-edges-id {
+  border: 0.5px solid white;
+  border-radius: 5px;
+  padding: 3px;
+}

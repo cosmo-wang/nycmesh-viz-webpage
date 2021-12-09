@@ -1,4 +1,12 @@
-#floating-window {
+#window-container {
+  height: 100vh;
+}
+
+#map-container {
+  height: 100vh;
+}
+
+.floating-window {
   background-color: rgba(35, 55, 75, 0.9);
   color: #fff;
   padding: 6px 9px;
@@ -6,16 +14,31 @@
   font-size: 11pt;
   z-index: 1;
   position: absolute;
-  top: 0;
   left: 0;
   margin: 12px;
   border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: center;
 }
 
+#utility-area {
+  top: 0;
+  max-height: 60%;
+  width: 260px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  overflow: scroll;
+}
+
+#utility-area::-webkit-scrollbar {
+  display: none;
+}
+
+#nodes-filter {
+  top: 62%;
+  max-height: 30%;
+  width: 260px;
+}
 
 .clickable:hover {
   cursor: pointer;
@@ -26,4 +49,27 @@
   height: 0;
   border: 0.5px solid white;
   margin: 10px 0;
+}
+
+
+.custom-button-group {
+  display: flex;
+  flex-direction: column;
+  align-self: center;
+}
+
+.custom-button {
+  border: 1px solid white;
+  border-radius: 4px;
+  width: 120px;
+  padding: 10px;
+  margin: 10px 5px;
+  background-color: green;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.custom-button-icon {
+  margin-right: 10px;
 }

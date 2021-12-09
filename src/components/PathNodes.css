@@ -8,25 +8,3 @@
 .edge-cost, .total-cost{
   margin: 5px;
 }
-
-.custom-button-group {
-  display: flex;
-  flex-direction: column;
-  align-self: center;
-}
-
-.custom-button {
-  border: 1px solid white;
-  border-radius: 4px;
-  width: 120px;
-  padding: 10px;
-  margin: 10px 5px;
-  background-color: green;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.custom-button-icon {
-  margin-right: 10px;
-}

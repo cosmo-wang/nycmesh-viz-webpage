@@ -3,6 +3,7 @@ import { FaRoute } from "react-icons/fa";
 import { AiOutlineClear } from "react-icons/ai";
 import ClickableNodeID from "./ClickableNodeID";
 import "./PathNodes.css";
+import "../App.css";
 
 const Edge = ({ cost }) => {
   return <div className="edge">
