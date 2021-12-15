@@ -22,7 +22,7 @@
 #utility-area {
   top: 0;
   max-height: 60%;
-  width: 260px;
+  width: 280px;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
@@ -37,7 +37,7 @@
 #nodes-filter {
   top: 62%;
   max-height: 30%;
-  width: 260px;
+  width: 280px;
 }
 
 .clickable:hover {

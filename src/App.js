@@ -36,6 +36,8 @@ function App() {
   const [activeNodes, setActiveNodes] = useState([]);
   const [idToNodes, setIdToNodes] = useState(null);
   const [nnToNodes, setNnToNodes] = useState(null);
+  // state related to path finding
+  const [searchType, setSearchType] = useState("ID");
   const [startNode, setStartNode] = useState(null);
   const [endNode, setEndNode] = useState(null);
   const [disabledNodes, setDisabledNodes] = useState(new Set());
@@ -350,14 +352,28 @@ function App() {
     map.current.flyTo({ center: [node.lng, node.lat], zoom: 13, speed: 2 });
   };
 
+  const handleSearchTypeChange = (e) => {
+    setSearchType(e.target.value);
+    setFocusedNode(null);
+    popUpRef.current.remove();
+  }
+
   const handleNodeSearch = (e) => {
     e.preventDefault();
-    const idToSearch = e.target.elements.idToSearch.value;
-    const nodeToSearch = idToNodes[idToSearch];
+    const infoToSearch = e.target.elements.infoToSearch.value;
+    let nodeToSearch;
+    if (searchType === "ID") {
+      nodeToSearch = idToNodes[infoToSearch];
+    } else if (searchType === "NN") {
+      nodeToSearch = nnToNodes[infoToSearch];
+    } else {
+      alert("Invalid Search Type: " + searchType);
+      return;
+    }
     if (nodeToSearch) {
       handleNodeClick(nodeToSearch);
     } else {
-      alert(`No node with ID ${idToSearch} found.`);
+      alert(`No node with ${searchType} ${infoToSearch} found.`);
     }
   };
 
@@ -574,7 +590,7 @@ function App() {
   return (
     <div id="window-container">
       <div id="utility-area" className="floating-window">
-        <NodeSearchBox handleNodeSearch={handleNodeSearch} />
+        <NodeSearchBox handleNodeSearch={handleNodeSearch} handleSearchTypeChange={handleSearchTypeChange}/>
         <PathNodes
           startNode={startNode}
           endNode={endNode}

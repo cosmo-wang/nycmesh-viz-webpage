@@ -1,10 +1,35 @@
-#idToSearch {
+#search-box {
+  height: 25px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+#search-select {
+  margin-left: 5px;
+}
+
+#search-container {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+#infoToSearch {
+  display: flex;
+  flex-direction: row;
   border: 1px solid white;
   border-radius: 4px;
-  height: 25px;
+  height: 20px;
+  width: 80px;
   margin: 10px 5px;
 }
 
 #search-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   height: 25px;
+  width: 25px;
 }
